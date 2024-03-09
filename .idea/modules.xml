@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/CSC369-Project.example.iml" filepath="$PROJECT_DIR$/.idea/modules/CSC369-Project.example.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Project.example.iml" filepath="$PROJECT_DIR$/.idea/modules/Project.example.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Project.project.example-build.iml" filepath="$PROJECT_DIR$/.idea/modules/Project.project.example-build.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/example.iml" filepath="$PROJECT_DIR$/.idea/modules/example.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/example-build.iml" filepath="$PROJECT_DIR$/.idea/modules/example-build.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/project.example-build.iml" filepath="$PROJECT_DIR$/.idea/modules/project.example-build.iml" />
