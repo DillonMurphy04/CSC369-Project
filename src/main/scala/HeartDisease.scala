@@ -4,8 +4,7 @@ import scala.math.log
 import scala.io.Source
 import scala.util.Random
 import scala.collection.mutable.ListBuffer
-
-
+import scala.collection.mutable.PriorityQueue
 import org.apache.log4j.{Level, Logger}
 
 case class Point(features: List[Double], label: Int)
@@ -18,7 +17,7 @@ object HeartDisease {
 
     val rdd = Source.fromFile("heart_disease.csv").getLines.toList
 
-    val n = 1000
+    val n = 30000
 
     val Y = rdd
       .map(_.split(",")(0))
@@ -37,8 +36,9 @@ object HeartDisease {
     val (trainY, testY) = Y.splitAt(splitIndex)
 
     // Run KNN
-    val maxK = 30 //change to test different values of k
-    val kValues = (1 to maxK).toList
+    val minK = 4 //change to test different min values of k
+    val maxK = 4 //change to test different max values of k
+    val kValues = (minK to maxK by 2).toList
 
     val result = kValues.map{ k =>
       val preds = knn(trainX, trainY, k, testX)
@@ -60,13 +60,17 @@ object HeartDisease {
     math.sqrt(squaredDistances.sum)
   }
 
-  def knn(X: List[List[Double]], Y: List[Int], k: Int, points: List[List[Double]]): List[Int] = {
-    points.map { newPoint =>
-      val allPoints = X.zip(Y).map { case (features, label) => Point(features, label) }
 
-      val nearestNeighbors = allPoints.map { p =>
-        (p, euclideanDistance(p.features, newPoint))
-      }.sortBy(_._2).take(k)
+  def knn(X: List[List[Double]], Y: List[Int], k: Int, points: List[List[Double]]): List[Int] = {
+    val allPoints = X.zip(Y).map { case (features, label) => Point(features, label) }
+
+    points.map { newPoint =>
+      val nearestNeighbors = PriorityQueue.empty[(Point, Double)](Ordering.by(_._2))
+      allPoints.foreach { p =>
+        val distance = euclideanDistance(p.features, newPoint)
+        nearestNeighbors.enqueue((p, distance))
+        if (nearestNeighbors.size > k) nearestNeighbors.dequeue()
+      }
 
       val labelCounts = nearestNeighbors.map(_._1.label).groupBy(identity).mapValues(_.size)
       labelCounts.maxBy(_._2)._1
