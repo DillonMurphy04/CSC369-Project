@@ -6,8 +6,9 @@ import scala.util.Random
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.PriorityQueue
 import org.apache.log4j.{Level, Logger}
-
-case class Point(features: List[Double], label: Int)
+import scala.math.exp
+import scala.util.Random
+case class Point(features: List[Double], label: Double)
 
 object HeartDisease {
 
@@ -17,11 +18,11 @@ object HeartDisease {
 
     val rdd = Source.fromFile("heart_disease.csv").getLines.toList
 
-    val n = 30000
+    val n = 5000
 
     val Y = rdd
       .map(_.split(",")(0))
-      .map(_.toInt)
+      .map(_.toDouble)
       .take(n)
 
     val X: List[List[Double]] = rdd
@@ -29,55 +30,99 @@ object HeartDisease {
       .map(_.split(",").map(_.toDouble).toList)
       .take(n)
 
-    // Split data into training and testing sets
+
+    //Split data into training and testing sets
     val splitRatio = 0.8
     val splitIndex = (X.length * splitRatio).toInt
     val (trainX, testX) = X.splitAt(splitIndex)
     val (trainY, testY) = Y.splitAt(splitIndex)
 
-    // Run KNN
-    val minK = 4 //change to test different min values of k
-    val maxK = 4 //change to test different max values of k
-    val kValues = (minK to maxK by 2).toList
+    val theta = logisticRegression(trainX, trainY)
 
-    val result = kValues.map{ k =>
-      val preds = knn(trainX, trainY, k, testX)
-      val macroF1 = macroF1Score(preds, testY)
-      (k, macroF1)
-    }.sortBy(-_._2)
+    println(s"Optimal parameters: $theta")
 
-    result.foreach(println)
+    val predictions = predict(testX, theta)
+    println(predictions)
+
+    val macroF1 = macroF1Score(predictions, testY)
+    println(macroF1)
+//    // Run KNN
+//    val minK = 2 //change to test different min values of k
+//    val maxK = 30 //change to test different max values of k
+//    val kValues = (minK to maxK by 2).toList
+//
+//    val result = kValues.map{ k =>
+//      val preds = knn(trainX, trainY, k, testX)
+//      val macroF1 = macroF1Score(preds, testY)
+//      (k, macroF1)
+//    }.sortBy(-_._2)
+//
+//    result.foreach(println)
   }
 
-  def euclideanDistance(vector1: List[Double], vector2: List[Double]): Double = {
-    require(vector1.length == vector2.length, "Vectors must have the same length")
-
-    val squaredDistances = vector1.zip(vector2).map { case (x1, x2) =>
-      val diff = x1 - x2
-      diff * diff
-    }
-
-    math.sqrt(squaredDistances.sum)
+  def sigmoid(z: Double): Double = {
+    1.0 / (1.0 + exp(-z))
   }
 
+  def hypothesis(theta: List[Double], x: List[Double]): Double = {
+    sigmoid((theta zip x).map { case (a, b) => a * b }.sum)
+  }
 
-  def knn(X: List[List[Double]], Y: List[Int], k: Int, points: List[List[Double]]): List[Int] = {
-    val allPoints = X.zip(Y).map { case (features, label) => Point(features, label) }
+  def logisticRegression(X: List[List[Double]], y: List[Double], alpha: Double = 0.01, iterations: Int = 1000): List[Double] = {
+    val m = X.length
+    val n = X.head.length
 
-    points.map { newPoint =>
-      val nearestNeighbors = PriorityQueue.empty[(Point, Double)](Ordering.by(_._2))
-      allPoints.foreach { p =>
-        val distance = euclideanDistance(p.features, newPoint)
-        nearestNeighbors.enqueue((p, distance))
-        if (nearestNeighbors.size > k) nearestNeighbors.dequeue()
+    // Initialize theta with random values
+    var theta = List.fill(n)(Random.nextDouble())
+
+    // Perform iterations without explicit for loops
+    (1 to iterations).foldLeft(theta) { (theta, _) =>
+      val h = X.map(hypothesis(theta, _))
+      val error = h.zip(y).map { case (h_i, y_i) => h_i - y_i }
+      val gradient = (0 until n).map { j =>
+        (0 until m).map { i =>
+          error(i) * X(i)(j)
+        }.sum
+      }.toList
+      theta.zip(gradient).map { case (theta_j, gradient_j) =>
+        theta_j - alpha * gradient_j / m.toDouble
       }
-
-      val labelCounts = nearestNeighbors.map(_._1.label).groupBy(identity).mapValues(_.size)
-      labelCounts.maxBy(_._2)._1
     }
   }
 
-  def macroF1Score(predictions: List[Int], labels: List[Int]): Double = {
+  def predict(X_test: List[List[Double]], theta: List[Double]): List[Double] = {
+    X_test.map(features => if (hypothesis(theta, features) >= 0.5) 1.0 else 0.0)
+  }
+
+//  def euclideanDistance(vector1: List[Double], vector2: List[Double]): Double = {
+//    require(vector1.length == vector2.length, "Vectors must have the same length")
+//
+//    val squaredDistances = vector1.zip(vector2).map { case (x1, x2) =>
+//      val diff = x1 - x2
+//      diff * diff
+//    }
+//
+//    math.sqrt(squaredDistances.sum)
+//  }
+//
+//
+//  def knn(X: List[List[Double]], Y: List[Double], k: Int, points: List[List[Double]]): List[Double] = {
+//    val allPoints = X.zip(Y).map { case (features, label) => Point(features, label) }
+//
+//    points.map { newPoint =>
+//      val nearestNeighbors = PriorityQueue.empty[(Point, Double)](Ordering.by(_._2))
+//      allPoints.foreach { p =>
+//        val distance = euclideanDistance(p.features, newPoint)
+//        nearestNeighbors.enqueue((p, distance))
+//        if (nearestNeighbors.size > k) nearestNeighbors.dequeue()
+//      }
+//
+//      val labelCounts = nearestNeighbors.map(_._1.label).groupBy(identity).mapValues(_.size)
+//      labelCounts.maxBy(_._2)._1
+//    }
+//  }
+//
+  def macroF1Score(predictions: List[Double], labels: List[Double]): Double = {
     require(predictions.length == labels.length, "Number of predictions must be equal to the number of labels")
 
     val uniqueLabels = (predictions ++ labels).distinct
