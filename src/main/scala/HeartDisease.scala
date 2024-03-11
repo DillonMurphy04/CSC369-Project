@@ -1,13 +1,11 @@
-import breeze.numerics.sqrt
 import scala.io.Source
-import scala.math.log
-import scala.io.Source
-import scala.util.Random
-import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.PriorityQueue
 import org.apache.log4j.{Level, Logger}
-import scala.math.exp
-import scala.util.Random
+import scala.math._
+import org.apache.commons.math3.stat.correlation.PearsonsCorrelation
+
+
+
 case class Point(features: List[Double], label: Double)
 
 object HeartDisease {
@@ -17,8 +15,7 @@ object HeartDisease {
     Logger.getLogger("akka").setLevel(Level.OFF)
 
     val rdd = Source.fromFile("heart_disease.csv").getLines.toList
-
-    val n = 5000
+    val n = 300000
 
     val Y = rdd
       .map(_.split(",")(0))
@@ -31,97 +28,70 @@ object HeartDisease {
       .take(n)
 
 
-    //Split data into training and testing sets
-    val splitRatio = 0.8
+    val corrs = correlationList(X, Y)
+
+    val biggestCorrs = corrs.zipWithIndex.sortBy(-_._1).take(13).map(_._2)
+    val X_sub = X.map(innerList => biggestCorrs.map(index => innerList(index)))
+
+    // Split data into training and testing sets
+    val splitRatio = 0.999
     val splitIndex = (X.length * splitRatio).toInt
-    val (trainX, testX) = X.splitAt(splitIndex)
+    val (trainX, testX) = X_sub.splitAt(splitIndex)
     val (trainY, testY) = Y.splitAt(splitIndex)
 
-    val theta = logisticRegression(trainX, trainY)
-
-    println(s"Optimal parameters: $theta")
-
-    val predictions = predict(testX, theta)
-    println(predictions)
-
+    // Run KNN
+    val predictions = knn(trainX, trainY, 6, testX)
     val macroF1 = macroF1Score(predictions, testY)
     println(macroF1)
-//    // Run KNN
-//    val minK = 2 //change to test different min values of k
-//    val maxK = 30 //change to test different max values of k
-//    val kValues = (minK to maxK by 2).toList
-//
-//    val result = kValues.map{ k =>
-//      val preds = knn(trainX, trainY, k, testX)
-//      val macroF1 = macroF1Score(preds, testY)
-//      (k, macroF1)
-//    }.sortBy(-_._2)
-//
-//    result.foreach(println)
+    val matrix = confusionMatrix(predictions, testY)
+    println("Confusion Matrix:")
+    matrix.foreach(row => println(row.mkString("\t")))
+
+
+    //    // Run KNN
+    //    val minK = 2 //change to test different min values of k
+    //    val maxK = 30 //change to test different max values of k
+    //    val kValues = (minK to maxK by 2).toList
+    //
+    //    val result = kValues.map{ k =>
+    //      val preds = knn(trainX, trainY, k, testX)
+    //      val macroF1 = macroF1Score(preds, testY)
+    //      (k, macroF1)
+    //    }.sortBy(-_._2)
+    //
+    //    result.foreach(println)
   }
 
-  def sigmoid(z: Double): Double = {
-    1.0 / (1.0 + exp(-z))
+
+
+  def euclideanDistance(vector1: List[Double], vector2: List[Double]): Double = {
+    require(vector1.length == vector2.length, "Vectors must have the same length")
+
+    val squaredDistances = vector1.zip(vector2).map { case (x1, x2) =>
+      val diff = x1 - x2
+      diff * diff
+    }
+
+    math.sqrt(squaredDistances.sum)
   }
 
-  def hypothesis(theta: List[Double], x: List[Double]): Double = {
-    sigmoid((theta zip x).map { case (a, b) => a * b }.sum)
-  }
 
-  def logisticRegression(X: List[List[Double]], y: List[Double], alpha: Double = 0.01, iterations: Int = 1000): List[Double] = {
-    val m = X.length
-    val n = X.head.length
+  def knn(X: List[List[Double]], Y: List[Double], k: Int, points: List[List[Double]]): List[Double] = {
+    val allPoints = X.zip(Y).map { case (features, label) => Point(features, label) }
 
-    // Initialize theta with random values
-    var theta = List.fill(n)(Random.nextDouble())
-
-    // Perform iterations without explicit for loops
-    (1 to iterations).foldLeft(theta) { (theta, _) =>
-      val h = X.map(hypothesis(theta, _))
-      val error = h.zip(y).map { case (h_i, y_i) => h_i - y_i }
-      val gradient = (0 until n).map { j =>
-        (0 until m).map { i =>
-          error(i) * X(i)(j)
-        }.sum
-      }.toList
-      theta.zip(gradient).map { case (theta_j, gradient_j) =>
-        theta_j - alpha * gradient_j / m.toDouble
+    points.map { newPoint =>
+      val nearestNeighbors = PriorityQueue.empty[(Point, Double)](Ordering.by(_._2))
+      allPoints.foreach { p =>
+        val distance = euclideanDistance(p.features, newPoint)
+        nearestNeighbors.enqueue((p, distance))
+        if (nearestNeighbors.size > k) nearestNeighbors.dequeue()
       }
+
+      val labelCounts = nearestNeighbors.map(_._1.label).groupBy(identity).mapValues(_.size)
+      labelCounts.maxBy(_._2)._1
     }
   }
 
-  def predict(X_test: List[List[Double]], theta: List[Double]): List[Double] = {
-    X_test.map(features => if (hypothesis(theta, features) >= 0.5) 1.0 else 0.0)
-  }
-
-//  def euclideanDistance(vector1: List[Double], vector2: List[Double]): Double = {
-//    require(vector1.length == vector2.length, "Vectors must have the same length")
-//
-//    val squaredDistances = vector1.zip(vector2).map { case (x1, x2) =>
-//      val diff = x1 - x2
-//      diff * diff
-//    }
-//
-//    math.sqrt(squaredDistances.sum)
-//  }
-//
-//
-//  def knn(X: List[List[Double]], Y: List[Double], k: Int, points: List[List[Double]]): List[Double] = {
-//    val allPoints = X.zip(Y).map { case (features, label) => Point(features, label) }
-//
-//    points.map { newPoint =>
-//      val nearestNeighbors = PriorityQueue.empty[(Point, Double)](Ordering.by(_._2))
-//      allPoints.foreach { p =>
-//        val distance = euclideanDistance(p.features, newPoint)
-//        nearestNeighbors.enqueue((p, distance))
-//        if (nearestNeighbors.size > k) nearestNeighbors.dequeue()
-//      }
-//
-//      val labelCounts = nearestNeighbors.map(_._1.label).groupBy(identity).mapValues(_.size)
-//      labelCounts.maxBy(_._2)._1
-//    }
-//  }
-//
   def macroF1Score(predictions: List[Double], labels: List[Double]): Double = {
     require(predictions.length == labels.length, "Number of predictions must be equal to the number of labels")
 
@@ -143,6 +113,21 @@ object HeartDisease {
     }
 
     f1Scores.sum / f1Scores.length
+  }
+
+  def confusionMatrix(predictions: List[Double], testY: List[Double]): Array[Array[Int]] = {
+    val tp = predictions.zip(testY).count { case (pred, actual) => pred == 1.0 && actual == 1.0 }
+    val fp = predictions.zip(testY).count { case (pred, actual) => pred == 1.0 && actual == 0.0 }
+    val tn = predictions.zip(testY).count { case (pred, actual) => pred == 0.0 && actual == 0.0 }
+    val fn = predictions.zip(testY).count { case (pred, actual) => pred == 0.0 && actual == 1.0 }
+
+    Array(Array(tp, fp), Array(fn, tn))
+  }
+
+  def correlationList(x: List[List[Double]], y: List[Double]): List[Double] = {
+    val correlations = new PearsonsCorrelation()
+    val transposedX = x.transpose
+    transposedX.map(feature => correlations.correlation(feature.toArray, y.toArray))
   }
 
 }

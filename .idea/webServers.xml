@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="450d7f26-10eb-413c-9a2e-48c99d3f5504" name="ambari-node5.csc.calpoly.edu">
+        <fileTransfer rootFolder="/home/zweinfel" accessType="SFTP" host="ambari-node5.csc.calpoly.edu" port="22" sshConfigId="2342d5cb-1f8c-464b-ac05-3f18cd67b270" sshConfig="zweinfel@ambari-node5.csc.calpoly.edu:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

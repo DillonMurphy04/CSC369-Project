@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" host="ambari-node5.csc.calpoly.edu" id="2342d5cb-1f8c-464b-ac05-3f18cd67b270" port="22" nameFormat="DESCRIPTIVE" username="zweinfel" useOpenSSHConfig="true" />
+    </configs>
+  </component>
+</project>
