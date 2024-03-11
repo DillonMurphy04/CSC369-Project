@@ -3,6 +3,7 @@ import scala.collection.mutable.PriorityQueue
 import org.apache.log4j.{Level, Logger}
 import scala.math._
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation
+import scala.collection.mutable.ListBuffer
 
 
 
@@ -15,17 +16,17 @@ object HeartDisease {
     Logger.getLogger("akka").setLevel(Level.OFF)
 
     val rdd = Source.fromFile("heart_disease.csv").getLines.toList
-    val n = 300000
+//    val n = 1000
 
     val Y = rdd
       .map(_.split(",")(0))
       .map(_.toDouble)
-      .take(n)
+//      .take(n)
 
-    val X: List[List[Double]] = rdd
+    val X = rdd
       .map(_.split(",", 2)(1))
       .map(_.split(",").map(_.toDouble).toList)
-      .take(n)
+//      .take(n)
 
 
     val corrs = correlationList(X, Y)
@@ -34,32 +35,18 @@ object HeartDisease {
     val X_sub = X.map(innerList => biggestCorrs.map(index => innerList(index)))
 
     // Split data into training and testing sets
-    val splitRatio = 0.999
+    val splitRatio = 0.80
     val splitIndex = (X.length * splitRatio).toInt
     val (trainX, testX) = X_sub.splitAt(splitIndex)
     val (trainY, testY) = Y.splitAt(splitIndex)
 
     // Run KNN
-    val predictions = knn(trainX, trainY, 6, testX)
+    val predictions = knn(trainX, trainY, 14, testX)
     val macroF1 = macroF1Score(predictions, testY)
     println(macroF1)
     val matrix = confusionMatrix(predictions, testY)
     println("Confusion Matrix:")
     matrix.foreach(row => println(row.mkString("\t")))
-
-
-    //    // Run KNN
-    //    val minK = 2 //change to test different min values of k
-    //    val maxK = 30 //change to test different max values of k
-    //    val kValues = (minK to maxK by 2).toList
-    //
-    //    val result = kValues.map{ k =>
-    //      val preds = knn(trainX, trainY, k, testX)
-    //      val macroF1 = macroF1Score(preds, testY)
-    //      (k, macroF1)
-    //    }.sortBy(-_._2)
-    //
-    //    result.foreach(println)
   }
 
 
