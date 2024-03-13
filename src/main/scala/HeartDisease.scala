@@ -3,6 +3,7 @@ import scala.io.Source
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.{ SparkConf, SparkContext }
 import org.apache.spark.rdd._
+import org.apache.spark.HashPartitioner
 
 
 case class Point(features: List[Double], label: Double)
@@ -13,7 +14,7 @@ object HeartDisease {
     Logger.getLogger("org").setLevel(Level.OFF)
     Logger.getLogger("akka").setLevel(Level.OFF)
 
-    val conf = new SparkConf().setAppName("HeartDisease").setMaster("local[4]")
+    val conf = new SparkConf().setAppName("HeartDisease")//.setMaster("local[4]")
     val sc = new SparkContext(conf)
 
     val rdd = sc.parallelize(Source.fromFile("heart_disease.csv").getLines.toList)
@@ -28,11 +29,16 @@ object HeartDisease {
       .map(_.split(",", 2)(1))
       .map(_.split(",").map(_.toDouble).toList)
 
+    //Precomputed correlations
+    val corrs = List(0.052666342, 0.108118498, -0.032941642, 0.198011848, 0.171679771, 0.028234899, 0.202921160, 0.068689146, 0.233131179, 0.186963466, -0.100893308, -0.244711160, 0.009221458, 0.041087395, 0.145428924, 0.093202412, 0.008853420, -0.029408055, -0.009577652, -0.036169976, -0.003541548, 0.039482622)
+    val biggestCorrs = corrs.zipWithIndex.sortBy(-_._1).take(13).map(_._2)
+    val X_sub = X.map(innerList => biggestCorrs.map(index => innerList(index)))
+
     // Split data into training and testing sets
-    val splitRatio = 0.99999
+    val splitRatio = 0.8
     val splitRatioArray = Array(splitRatio, 1 - splitRatio)
     val seed = 123
-    val Array(trainX, testX) = X.randomSplit(splitRatioArray, seed)
+    val Array(trainX, testX) = X_sub.randomSplit(splitRatioArray, seed)
     val Array(trainY, testY) = Y.randomSplit(splitRatioArray, seed)
 
     // Run KNN
