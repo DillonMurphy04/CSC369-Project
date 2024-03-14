@@ -1,0 +1,17 @@
+Finding data (1 hour): All
+
+Cleaning Data (1 hour): All
+
+Trying to implement a decision tree (3 hours): Mostly Dillon and Zach, some Nick
+
+Trying logistic regression (1 hour): Mostly Nick and Zach, some Dillon
+
+Creating a KNN Classifier (2 hours): Mostly Zach, some Nick and Dillon
+
+Data Visualization (1 hour): Mostly Dillon, some Nick and Zach
+
+Creating the presentation (1 hour): All
+
+Creating the report (30 minutes): Mostly Nick, some Dillon and Zach
+
+Log File (10 minutes): All
